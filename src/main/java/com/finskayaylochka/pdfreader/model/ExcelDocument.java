@@ -1,4 +1,4 @@
-package com.finskayaylochka.pdfreader;
+package com.finskayaylochka.pdfreader.model;
 
 import lombok.AccessLevel;
 import lombok.Data;
