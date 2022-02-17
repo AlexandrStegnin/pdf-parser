@@ -3,6 +3,7 @@ package com.finskayaylochka.pdfreader.service;
 import com.finskayaylochka.pdfreader.model.ExcelDocument;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -15,7 +16,14 @@ import technology.tabula.extractors.SpreadsheetExtractionAlgorithm;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author Alexandr Stegnin
@@ -27,7 +35,33 @@ import java.util.List;
 @Slf4j
 public class PdfParseService {
 
-  public void parsePdf(String path) {
+  ExcelService excelService;
+
+  public void parseDir(String dir, String excelPath) {
+    collectExcelData(getFiles(dir))
+        .stream()
+        .filter(Objects::nonNull)
+        .forEach(excelDocument -> excelService.buildExcel(excelPath, excelDocument));
+  }
+
+  @SneakyThrows
+  private Set<String> getFiles(String dir) {
+    try (Stream<Path> stream = Files.list(Paths.get(dir))) {
+      return stream
+          .filter(file -> !Files.isDirectory(file))
+          .map(path -> path.toFile().getAbsolutePath())
+          .collect(Collectors.toSet());
+    }
+  }
+
+  private List<ExcelDocument> collectExcelData(Set<String> filenames) {
+    List<ExcelDocument> documents = filenames.stream()
+        .map(file -> parsePdf(file))
+        .collect(Collectors.toList());
+    return documents;
+  }
+
+  public ExcelDocument parsePdf(String path) {
     try (PDDocument pd = PDDocument.load(new File(path));) {
       int totalPages = pd.getNumberOfPages();
       log.info("Found pages count: {}", totalPages);
@@ -61,9 +95,11 @@ public class PdfParseService {
           }
         });
       }
-      System.out.println(excelDocument);
+      pd.close();
+      return excelDocument;
     } catch (IOException e) {
       log.error("Ошибка разбора pdf файла {}: {}", path, e);
+      return null;
     }
   }
 
